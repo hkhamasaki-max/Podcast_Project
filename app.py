@@ -159,6 +159,38 @@ def css() -> None:
         div[data-testid="stButton"] button {
           border-radius: 8px;
           min-height: 2.7rem;
+          border: 1px solid var(--line) !important;
+          background: var(--surface) !important;
+          color: var(--ink) !important;
+          box-shadow: none !important;
+        }
+
+        div[data-testid="stButton"] button:hover,
+        div[data-testid="stButton"] button:focus,
+        div[data-testid="stButton"] button:active {
+          border-color: var(--accent) !important;
+          background: #f4faf7 !important;
+          color: var(--accent-strong) !important;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"] {
+          border-color: var(--accent) !important;
+          background: var(--accent) !important;
+          color: #ffffff !important;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"]:hover,
+        div[data-testid="stButton"] button[kind="primary"]:focus,
+        div[data-testid="stButton"] button[kind="primary"]:active {
+          border-color: var(--accent-strong) !important;
+          background: var(--accent-strong) !important;
+          color: #ffffff !important;
+        }
+
+        div[data-testid="stButton"] button:disabled {
+          border-color: var(--line) !important;
+          background: #f5f5f2 !important;
+          color: #9da59f !important;
         }
 
         div[data-testid="stNumberInput"] input {
@@ -169,6 +201,27 @@ def css() -> None:
           border-color: var(--line);
           border-radius: 8px;
           background: var(--surface);
+        }
+
+        .field-label {
+          color: var(--accent-strong);
+          font-size: 0.86rem;
+          font-weight: 800;
+          margin: 0;
+        }
+
+        .field-body {
+          color: var(--ink);
+          line-height: 1.75;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          margin: 0;
+        }
+
+        .field-empty {
+          color: var(--muted);
+          line-height: 1.75;
+          margin: 0;
         }
 
         @media (max-width: 720px) {
@@ -292,46 +345,53 @@ def html_escape(value: Any) -> str:
     )
 
 
+def display_value(value: Any) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return str(value)
+
+
+def render_field(label: str, value: Any) -> None:
+    text = display_value(value)
+    st.markdown(f'<p class="field-label">{html_escape(label)}</p>', unsafe_allow_html=True)
+    if text:
+        st.markdown(
+            f'<p class="field-body">{html_escape(text)}</p>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown('<p class="field-empty">未入力</p>', unsafe_allow_html=True)
+
+
 def render_card(record: pd.Series) -> None:
-    program_type = html_escape(record.get("program_type", ""))
-    keywords = html_escape(record.get("source_keywords", ""))
-    title = html_escape(record.get("title", "未入力"))
-    program_id = html_escape(record.get("program_id", ""))
+    program_type = display_value(record.get("program_type", ""))
+    keywords = display_value(record.get("source_keywords", ""))
+    title = display_value(record.get("title", "")) or "未入力"
+    program_id = display_value(record.get("program_id", ""))
     meta = " / ".join([part for part in [program_type, keywords] if part])
 
-    sections = []
-    for key, label in DISPLAY_FIELDS:
-        if key not in record:
-            continue
-        body = html_escape(record.get(key, "")) or "未入力"
-        wide = " wide" if key in {"summary", "goal", "concepts", "small_experiment"} else ""
-        muted = " muted" if body == "未入力" else ""
-        sections.append(
-            f"""
-            <section class="data-section{wide}">
-              <div class="section-label">{html_escape(label)}</div>
-              <div class="section-body{muted}">{body}</div>
-            </section>
-            """
-        )
+    with st.container(border=True):
+        head_left, head_right = st.columns([4, 1])
+        with head_left:
+            st.caption(meta or " ")
+            st.subheader(title)
+        with head_right:
+            if program_id:
+                st.caption("program_id")
+                st.markdown(f"**{program_id}**")
 
-    st.markdown(
-        f"""
-        <article class="card">
-          <div class="card-head">
-            <div>
-              <div class="meta-line">{meta}</div>
-              <h2>{title}</h2>
-            </div>
-            <div class="record-id">{program_id}</div>
-          </div>
-          <div class="section-grid">
-            {''.join(sections)}
-          </div>
-        </article>
-        """,
-        unsafe_allow_html=True,
-    )
+        for key, label in DISPLAY_FIELDS[:4]:
+            if key in record:
+                with st.container(border=True):
+                    render_field(label, record.get(key, ""))
+
+        compact_fields = [(key, label) for key, label in DISPLAY_FIELDS[4:] if key in record]
+        if compact_fields:
+            columns = st.columns(2)
+            for index, (key, label) in enumerate(compact_fields):
+                with columns[index % 2]:
+                    with st.container(border=True):
+                        render_field(label, record.get(key, ""))
 
 
 def main() -> None:
