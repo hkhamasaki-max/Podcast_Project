@@ -432,6 +432,14 @@ def install_keyboard_shortcuts() -> None:
               event.preventDefault();
               clickButton("次へ ›");
             }
+            if (event.key === "Enter") {
+              event.preventDefault();
+              const buttons = Array.from(parentDocument.querySelectorAll("button"));
+              const favoriteButton = buttons.find((item) =>
+                item.textContent.includes("お気に入り") && item.textContent.includes("Enter")
+              );
+              if (favoriteButton && !favoriteButton.disabled) favoriteButton.click();
+            }
           });
         })();
         </script>
@@ -507,7 +515,7 @@ def main() -> None:
             st.session_state.current_index += 1
             st.rerun()
     with nav_fav:
-        fav_label = "★ お気に入り済み" if is_favorite else "☆ お気に入り"
+        fav_label = "★ お気に入り済み (Enter)" if is_favorite else "☆ お気に入り (Enter)"
         if st.button(fav_label, use_container_width=True):
             update_cell(sheet_row, "favorite", not is_favorite)
             cached_read_sheet.clear()
