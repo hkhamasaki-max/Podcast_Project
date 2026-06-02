@@ -5,6 +5,7 @@ from typing import Any
 import gspread
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from google.oauth2.service_account import Credentials
 
 
@@ -394,10 +395,55 @@ def render_card(record: pd.Series) -> None:
                         render_field(label, record.get(key, ""))
 
 
+def install_keyboard_shortcuts() -> None:
+    components.html(
+        """
+        <script>
+        (function () {
+          const parentWindow = window.parent;
+          const parentDocument = parentWindow.document;
+          if (parentWindow.__programCardKeyboardAttached) return;
+          parentWindow.__programCardKeyboardAttached = true;
+
+          function isEditing(target) {
+            if (!target) return false;
+            const tag = target.tagName ? target.tagName.toLowerCase() : "";
+            return (
+              tag === "input" ||
+              tag === "textarea" ||
+              tag === "select" ||
+              target.isContentEditable
+            );
+          }
+
+          function clickButton(label) {
+            const buttons = Array.from(parentDocument.querySelectorAll("button"));
+            const button = buttons.find((item) => item.textContent.trim() === label);
+            if (button && !button.disabled) button.click();
+          }
+
+          parentDocument.addEventListener("keydown", function (event) {
+            if (isEditing(event.target)) return;
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              clickButton("‹ 前へ");
+            }
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              clickButton("次へ ›");
+            }
+          });
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def main() -> None:
     css()
     st.markdown('<div class="topline">Program List</div>', unsafe_allow_html=True)
-    st.title("カードビュー")
 
     with st.sidebar:
         st.subheader("Google Sheets")
@@ -449,6 +495,8 @@ def main() -> None:
 
     st.caption(f"{st.session_state.current_index} / {total} 件")
 
+    render_card(record)
+
     nav_left, nav_right, nav_fav = st.columns([1, 1, 2])
     with nav_left:
         if st.button("‹ 前へ", use_container_width=True, disabled=st.session_state.current_index <= 1):
@@ -465,7 +513,7 @@ def main() -> None:
             cached_read_sheet.clear()
             st.rerun()
 
-    render_card(record)
+    install_keyboard_shortcuts()
 
     with st.container(border=True):
         note_key = f"note_{st.session_state.current_index}"
