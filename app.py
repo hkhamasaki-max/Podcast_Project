@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 from typing import Any
 
 import gspread
@@ -157,16 +156,19 @@ def css() -> None:
           color: var(--muted);
         }
 
-        .note-panel {
-          border: 1px solid var(--line);
-          border-radius: 8px;
-          background: var(--surface);
-          padding: 1rem;
-          margin-top: 0.8rem;
-        }
-
         div[data-testid="stButton"] button {
           border-radius: 8px;
+          min-height: 2.7rem;
+        }
+
+        div[data-testid="stNumberInput"] input {
+          text-align: center;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+          border-color: var(--line);
+          border-radius: 8px;
+          background: var(--surface);
         }
 
         @media (max-width: 720px) {
@@ -370,35 +372,34 @@ def main() -> None:
 
     st.session_state.current_index = max(1, min(int(st.session_state.current_index), total))
 
-    nav_left, nav_mid, nav_right, nav_fav = st.columns([1, 2.3, 1, 1.9])
-    with nav_left:
-        if st.button("‹", use_container_width=True, disabled=st.session_state.current_index <= 1):
-            st.session_state.current_index -= 1
-            st.rerun()
-    with nav_mid:
-        selected_index = st.number_input(
-            "表示",
-            min_value=1,
-            max_value=total,
-            value=st.session_state.current_index,
-            step=1,
-            label_visibility="collapsed",
-        )
-        if selected_index != st.session_state.current_index:
-            st.session_state.current_index = int(selected_index)
-            st.rerun()
-        st.caption(f"{st.session_state.current_index} / {total} 件")
-    with nav_right:
-        if st.button("›", use_container_width=True, disabled=st.session_state.current_index >= total):
-            st.session_state.current_index += 1
-            st.rerun()
-
     record = df.iloc[st.session_state.current_index - 1]
     sheet_row = st.session_state.current_index + 1
     is_favorite = normalize_bool(record.get("favorite"))
 
+    selected_index = st.number_input(
+        "表示するデータ",
+        min_value=1,
+        max_value=total,
+        value=st.session_state.current_index,
+        step=1,
+    )
+    if selected_index != st.session_state.current_index:
+        st.session_state.current_index = int(selected_index)
+        st.rerun()
+
+    st.caption(f"{st.session_state.current_index} / {total} 件")
+
+    nav_left, nav_right, nav_fav = st.columns([1, 1, 2])
+    with nav_left:
+        if st.button("‹ 前へ", use_container_width=True, disabled=st.session_state.current_index <= 1):
+            st.session_state.current_index -= 1
+            st.rerun()
+    with nav_right:
+        if st.button("次へ ›", use_container_width=True, disabled=st.session_state.current_index >= total):
+            st.session_state.current_index += 1
+            st.rerun()
     with nav_fav:
-        fav_label = "★ お気に入り" if is_favorite else "☆ お気に入り"
+        fav_label = "★ お気に入り済み" if is_favorite else "☆ お気に入り"
         if st.button(fav_label, use_container_width=True):
             update_cell(sheet_row, "favorite", not is_favorite)
             cached_read_sheet.clear()
@@ -406,20 +407,19 @@ def main() -> None:
 
     render_card(record)
 
-    st.markdown('<section class="note-panel">', unsafe_allow_html=True)
-    note_key = f"note_{st.session_state.current_index}"
-    note_value = st.text_area(
-        "user_note",
-        value=str(record.get("user_note", "")),
-        height=150,
-        key=note_key,
-    )
-    if st.button("更新", type="primary"):
-        update_cell(sheet_row, "user_note", note_value)
-        cached_read_sheet.clear()
-        st.success("保存しました")
-        st.rerun()
-    st.markdown("</section>", unsafe_allow_html=True)
+    with st.container(border=True):
+        note_key = f"note_{st.session_state.current_index}"
+        note_value = st.text_area(
+            "user_note",
+            value=str(record.get("user_note", "")),
+            height=150,
+            key=note_key,
+        )
+        if st.button("更新", type="primary"):
+            update_cell(sheet_row, "user_note", note_value)
+            cached_read_sheet.clear()
+            st.success("保存しました")
+            st.rerun()
 
     csv = clean_dataframe(df).to_csv(index=False).encode("utf-8-sig")
     st.download_button(
